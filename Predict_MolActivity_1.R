@@ -8,7 +8,9 @@ library (readr)
 ##### Read Data and create data splits #####
 TrainingCSVDir <- "/media/MerckData/MerkDataHome/RawData/TrainingSet"
 TestCSVDir <- "/media/MerckData/MerkDataHome/RawData/TestSet"
-Train.df <- read.csv (paste0(TrainingCSVDir, "/ACT1_competition_training.csv"))
+#Train.df <- read.csv (paste0(TrainingCSVDir, "/ACT1_competition_training.csv"))
+#saveRDS(Train.df, file = "Trian.df_Jul032017.rds")
+Train.df <- readRDS("Trian.df_Jul032017.rds")
 ##### Make the effect discrete ######
 Act_Discrete <- Train.df$Act
 Discrete_Temp <- ceiling (Train.df$Act) - round(Train.df$Act)
