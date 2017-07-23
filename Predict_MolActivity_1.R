@@ -2,15 +2,26 @@
 library ("caret")
 library ("dplyr")
 #devtools::install_github("rstudio/keras")
+#devtools::install_github("tidyverse/rlang")
+#devtools::install_github("tidyverse/tibble")
 #devtools::install_github("tidyverse/readr")
+#devtools::install_github("rstudio/tensorflow", force = T)
 library(keras)
 library (readr)
+library (tensorflow)
+#install_tensorflow(gpu = T)
+config = tf$gpu_options$allocator_type = 'BFC'
+#config$gpu_options$allocator_type = 'BFC'
+tf$GPUOptions$ALLOCATOR_TYPE_FIELD_NUMBER = "BFC"
+sess <- tf$Session
+with(tf$Session(config = tf$GPUOptions$ALLOCATOR_TYPE_FIELD_NUMBER = "BFC") %as% sess)
+with tf.Session(config = config) as s
 ##### Read Data and create data splits #####
-TrainingCSVDir <- "/media/MerckData/MerkDataHome/RawData/TrainingSet"
-TestCSVDir <- "/media/MerckData/MerkDataHome/RawData/TestSet"
+TrainingCSVDir <- "/media/Merck_Data/MerkDataHome/RawData/TrainingSet"
+TestCSVDir <- "/media/Merck_Data/MerkDataHome/RawData/TestSet"
 #Train.df <- read.csv (paste0(TrainingCSVDir, "/ACT1_competition_training.csv"))
-#saveRDS(Train.df, file = "Trian.df_Jul032017.rds")
-Train.df <- readRDS("Trian.df_Jul032017.rds")
+#saveRDS(Train.df, file = "Trian.df_Jul042017.rds")
+Train.df <- readRDS("Trian.df_Jul042017.rds")
 ##### Make the effect discrete ######
 Act_Discrete <- Train.df$Act
 Discrete_Temp <- ceiling (Train.df$Act) - round(Train.df$Act)
@@ -21,6 +32,8 @@ Act_Discrete[-Index_Ones] <- ceiling(Train.df$Act[-Index_Ones]) - 0.5
 ValidationSet <- createDataPartition(y = Act_Discrete, times = 1, p = 0.75, list = F)
 Train_Validation.df <- Train.df[-ValidationSet,]
 Train.df <- Train.df[ValidationSet,]
+#saveRDS(object = Train.df, file = "TrainAfterValidation_Jul122017.rds")
+Train.df <- readRDS(file = "TrainAfterValidation_Jul122017.rds")
 ##### Define R-squared function#####
 Rsquared <- function(x,y) {
   # Returns R-squared.
@@ -60,20 +73,67 @@ model %>%
 summary (model)
 model %>% compile(
   loss = 'categorical_crossentropy',
-  optimizer = optimizer_sgd(lr = 0.5, decay = 0.05),
+  optimizer = optimizer_sgd(lr = 0.000005, decay = 0.0000001),
   metrics = c('accuracy')
 )
 
 history <- model %>% fit(
   x = as.matrix(Train.df[,3:ncol(Train.df)]), y = One_Hot_Matrix, 
-  epochs = 20, batch_size = 128, 
+  epochs = 20, batch_size = 32, 
   validation_split = 0.2
 )
 
 plot(history)
 
+###### PlayGround ###############
+#tt <- prcomp(Train.df[,3:ncol(Train.df)])
+#saveRDS(tt, file = "tt_Jul122017.rds")
+#ttprin <- princomp(Train.df[,3:ncol(Train.df)])
+#saveRDS(ttprin, file = "ttprin_Jul182017.rds")
+tt <- readRDS(file="tt_Jul122017.rds")
+MyData <- data.frame(tt$x)
+p1 <- ggplot(MyData)
+p1 <- p1 + geom_point(aes(PC2,PC3))
+p1
+ttmeans= kmeans(x=tt$x[,1:2], centers = 6)
+p1 <- ggplot(MyData)
+p1 <- p1 + geom_point(aes(PC1,PC2), color = ttmeans$cluster)
+p1
+###############
+MidAct <- max(Train.df$Act) - min(Train.df$Act)
+ScaledAct <- MidAct - Train.df$Act
+#ScaledAct <- ScaledAct / var(ScaledAct)
+p1 <- ggplot(MyData)
+p1 <- p1 + geom_point(aes(PC2,PC3, color = ScaledAct), alpha = 1, size = 0.5) 
+p1
+class(tt$x)
+#### Plot activity as a function of PCs #############
+ActNormalized <- Train.df$Act - mean(Train.df$Act)
+ActNormalized <- ActNormalized / (max(ActNormalized) - min(ActNormalized))
+fit <- glm (ActNormalized ~ tt$x[,5648])
+summary(fit)
+EngPC <- exp(-(PC_Normalized)^2)
+EngPC <- poly(PC_Normalized,3)
+fit <- lm (ActNormalized ~ EngPC)
+summary(fit)
+p1 <- ggplot(MyData)
+p1 <- p1 + geom_point(aes(PC_Normalized, ActNormalized))
+p1 <- p1 + geom_abline(intercept = fit$coefficients[1], slope = fit$coefficients[2], color = "red")
+p1
 
-
-
-
-
+FitCoeff <- NULL
+for (i in 1:ncol(tt$x))
+{
+  PC_Normalized <- tt$x[,i] - mean(tt$x[,i])
+  PC_Normalized <- PC_Normalized / max(tt$x[,i]) - (min(tt$x[,i]))
+  #PC_Normalized <- PC_Normalized/max(PC_Normalized)
+  #PC_Normalized <- PC_Normalized - min(PC_Normalized)
+  fit <- glm (ActNormalized ~ PC_Normalized, family = gaussian)
+  FitCoeff <- c(FitCoeff,fit$coefficients[2])
+}
+saveRDS(object = FitCoeff, file = "FitCoeff_Jul122017.rds")
+class(FitCoeff[1])
+CloseToOne <- 1 - abs(FitCoeff)
+which((CloseToOne == min(abs(CloseToOne))) | (CloseToOne == - min(abs(CloseToOne))))
+fit <- glm (Train.df$Act ~ tt$x[,6])
+summary(fit)
