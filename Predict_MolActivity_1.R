@@ -91,6 +91,8 @@ plot(history)
 #ttprin <- princomp(Train.df[,3:ncol(Train.df)])
 #saveRDS(ttprin, file = "ttprin_Jul182017.rds")
 tt <- readRDS(file="tt_Jul122017.rds")
+Fit_PrincComp <- readRDS("ttprin_Jul182017.rds")
+
 MyData <- data.frame(tt$x)
 p1 <- ggplot(MyData)
 p1 <- p1 + geom_point(aes(PC2,PC3))
@@ -105,6 +107,12 @@ ScaledAct <- MidAct - Train.df$Act
 #ScaledAct <- ScaledAct / var(ScaledAct)
 p1 <- ggplot(MyData)
 p1 <- p1 + geom_point(aes(PC2,PC3, color = ScaledAct), alpha = 1, size = 0.5) 
+p1
+class(tt$x)
+####### Plot princomp #####
+MyData_PrinComp <- data.frame(Fit_PrincComp$scores)
+p1 <- ggplot(MyData_PrinComp)
+p1 <- p1 + geom_point(aes(Comp.2,Comp.3, color = ScaledAct), alpha = 1, size = 0.5) 
 p1
 class(tt$x)
 #### Plot activity as a function of PCs #############
@@ -137,3 +145,4 @@ CloseToOne <- 1 - abs(FitCoeff)
 which((CloseToOne == min(abs(CloseToOne))) | (CloseToOne == - min(abs(CloseToOne))))
 fit <- glm (Train.df$Act ~ tt$x[,6])
 summary(fit)
+
