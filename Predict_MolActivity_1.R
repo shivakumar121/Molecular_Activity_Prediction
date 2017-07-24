@@ -114,7 +114,40 @@ MyData_PrinComp <- data.frame(Fit_PrincComp$scores)
 p1 <- ggplot(MyData_PrinComp)
 p1 <- p1 + geom_point(aes(Comp.2,Comp.3, color = ScaledAct), alpha = 1, size = 0.5) 
 p1
-class(tt$x)
+#### Make new DF with PC loading #######
+NumPCsNeeded <- 100
+PC.Act.df <- matrix(nrow = nrow(Train.df), ncol = NumPCsNeeded)
+for (i in 1:NumPCsNeeded)
+{
+  for (j in 1:nrow(Train.df))
+  {
+    Temp_PC_Coef_Mull <- sum(Fit_PrincComp$loadings[,i] * Train.df[j,3:ncol(Train.df)])
+    PC.Act.df[j,i] <- Temp_PC_Coef_Mull
+    print (paste0("Current j=", j))
+  }
+  print (paste0("Current i=", i))
+}
+PC.Act.df <- t(Fit_PrincComp$loadings[,1:10]) %*% t(as.matrix(Train.df[,3:ncol(Train.df)]))
+PC.Act.df <- t(PC.Act.df)
+model_2 <- keras_model_sequential()
+model_2 %>% 
+  layer_dense(units = 27931, activation = 'relu', input_shape = c(10)) %>% 
+  layer_dropout(rate = 0.2) %>% 
+  layer_dense(units = 27931, activation = 'relu') %>%
+  layer_dropout(rate = 0.2) %>%
+  layer_dense(units = 9, activation = 'softmax')
+summary (model_2)
+model_2 %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(lr = 0.000005, decay = 0.0000001),
+  metrics = c('accuracy')
+)
+
+history <- model_2 %>% fit(
+  x = as.matrix(PC.Act.df), y = One_Hot_Matrix, 
+  epochs = 20, batch_size = 32, 
+  validation_split = 0.2
+)
 #### Plot activity as a function of PCs #############
 ActNormalized <- Train.df$Act - mean(Train.df$Act)
 ActNormalized <- ActNormalized / (max(ActNormalized) - min(ActNormalized))
