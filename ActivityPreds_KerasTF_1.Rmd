@@ -1,6 +1,8 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Predict molecular activity using Neural Networks implemented with Keras and Tensorflow"
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 ### 1) Load libraries
@@ -12,6 +14,26 @@ library ("dplyr")
 library(keras)
 library (readr)
 library (tensorflow)
+Train.df <- readRDS("Trian.df_Jul042017.rds")
+```
+
+### 2) Create Validation Set and Discrete Outcomes
+
+Now that we have read in the data we'll create a validation set so that we can test how our model is performing later. 
+The outcome that we want to predict varies continuously within a range of 4.3 to 8. But, for all practical purposes we don't really want to predict the precise activity as long as we are in the right ball-park. So we are going to make the outcome discrete by binnin them into windows. We can choose the bins of any size depending on the desired amount of prediction resolution, and also the amount of information content in the parameters.
+
+```{r}
+#### Bin continuous variable into bins to make it discrete ####
+Act_Discrete <- Train.df$Act
+Discrete_Temp <- ceiling (Train.df$Act) - round(Train.df$Act)
+Index_Ones <- which(Discrete_Temp == 1)
+Act_Discrete[Index_Ones] <- round(Act_Discrete[Index_Ones])
+Act_Discrete[-Index_Ones] <- ceiling(Train.df$Act[-Index_Ones]) - 0.5
+#### Now create a validation set ####
+ValidationSet <- createDataPartition(y = Act_Discrete, times = 1, p = 0.75, list = F)
+ValidationSet <- readRDS(file = "ValidatioSet_Jul252017.rds")
+Train_Validation.df <- Train.df[-ValidationSet,]
+Train.df <- Train.df[ValidationSet,]
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
