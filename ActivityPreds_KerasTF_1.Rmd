@@ -47,17 +47,26 @@ Fit_PrincComp <- princomp(Train.df[,3:ncol(Train.df)])
 MidAct <- max(Train.df$Act) - min(Train.df$Act)
 ScaledAct <- MidAct - Train.df$Act
 MyData_PrinComp <- data.frame(Fit_PrincComp$scores)
+
+```
+First we'll print a plot of PC1 and PC2.
+
+```{r}
 p1 <- ggplot(MyData_PrinComp)
 p1 <- p1 + geom_point(aes(Comp.1,Comp.2, color = ScaledAct), alpha = 1, size = 0.5) 
-print ("Plot of PC1 and PC2")
 p1
-print ("Plot of PC2 and PC3")
+
+```
+
+We'll also look at how a plot of PC2 and PC3 looks.
+
+```{r}
 p1 <- ggplot(MyData_PrinComp)
 p1 <- p1 + geom_point(aes(Comp.2,Comp.3, color = ScaledAct), alpha = 1, size = 0.5) 
 p1
 ```
 
-Principal component plots show that based on the prediction parameters the samples do not fall into tight clusters. If we color them by activity we can observe that PC3 seems to form somewhat of a cluster of highly active molecules. Though the clusters are not exclusive, they do capture some information about the molecules activity which can be used for prediction.
+Principal component plots show that based on the prediction parameters the samples do not fall into tight clusters. If we color them by activity we can observe that PC3 seems to form somewhat of a cluster of highly active molecules. Though the clusters are not exclusive, they do capture some information about the molecule's activity which can be used for prediction.
 
 #### 4) Create TF model using Keras ####
 
@@ -71,7 +80,7 @@ Train.df <- cbind (Train.df, PC.Act.df)
 
 ```
 
-Since there are very few row with high activity and an overwhelming majority of rows have the lowest levels of activity, we are at a danger of training our model to just predict low activity all the time. This would defeat the purpose of identifying those molecules which might have high molecular activity. To prevent this from happening we'll make several small chunks of the data. Each chunk will have all of the less-frequent, high activity molecules, and a random sample of the highly-frequent low activity molecules.
+Since there are very few rows with high activity and an overwhelming majority of rows have the lowest levels of activity, we are at a danger of training our model to just predict low activity all the time. This would defeat the purpose of identifying those molecules which might have high molecular activity. To prevent this from happening we'll make several small chunks of the data. Each chunk will have all of the less-frequent, high activity molecules, and a random sample of the highly-frequent low activity molecules. We'll then iteratively train our model with all theses chunks, updating the weights from the previous training chunk as we go along.
 
 ```{r}
 ######
