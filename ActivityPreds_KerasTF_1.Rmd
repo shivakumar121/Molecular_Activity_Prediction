@@ -105,6 +105,7 @@ model_trimmed %>% compile(
   loss = 'categorical_crossentropy',
   optimizer = optimizer_sgd(lr = 0.0005, decay = 0.0001),
   metrics = c('accuracy'))
+NumEpoch <- 10
 #for (i in 1:ceiling(table(Act_Discrete)[1]/Max_N)){}
 for (i in 1:ceiling(table(Act_Discrete)[1]/Max_N))
 {
@@ -149,12 +150,12 @@ for (i in 1:ceiling(table(Act_Discrete)[1]/Max_N))
   #PC.Act.df <- t(Fit_PrincComp$loadings[,1:50]) %*% t(as.matrix(Train.df.trimmed[,3:ncol(Train.df.trimmed)]))
   #PC.Act.df <- t(PC.Act.df)
   
-  NumEpoch <- ifelse(i < 10, yes = 10, no = i)
-  history_trimmed <- model_trimmed %>% fit(
+    history_trimmed <- model_trimmed %>% fit(
     x = as.matrix(Train.df.trimmed[,3:ncol(Train.df.trimmed)]), y = One_Hot_Matrix, 
     epochs = NumEpoch, batch_size = 96, 
     validation_split = 0.2
   )
+    NumEpoch <- NumEpoch + 10
   plot(history_trimmed)
   
 }
