@@ -2,7 +2,7 @@
 title: "Predict molecular activity using Neural Networks implemented with Keras and Tensorflow"
 output:
   html_document: default
-  html_notebook: default
+  github_document: default
 ---
 
 ### 1) Load libraries
@@ -140,10 +140,10 @@ for (i in 1:ceiling(table(Act_Discrete)[1]/Max_N))
   #PC.Act.df <- t(Fit_PrincComp$loadings[,1:50]) %*% t(as.matrix(Train.df.trimmed[,3:ncol(Train.df.trimmed)]))
   #PC.Act.df <- t(PC.Act.df)
   
-  
+  NumEpoch <- ifelse(i < 10, yes = 10, no = i)
   history_trimmed <- model_trimmed %>% fit(
     x = as.matrix(Train.df.trimmed[,3:ncol(Train.df.trimmed)]), y = One_Hot_Matrix, 
-    epochs = 50, batch_size = 32, 
+    epochs = NumEpoch, batch_size = 96, 
     validation_split = 0.2
   )
   plot(history_trimmed)
