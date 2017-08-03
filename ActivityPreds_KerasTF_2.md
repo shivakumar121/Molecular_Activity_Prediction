@@ -1,16 +1,34 @@
----
-title: "Predict molecular activity using Neural Networks implemented with Keras and Tensorflow"
-output:
-  html_document: default
-  github_document: default
----
+Predict molecular activity using Neural Networks implemented with Keras and Tensorflow
+================
 
 ### 1) Load libraries
+
 First we'll load all the required libraries and data.
 
-```{r}
+``` r
 library ("caret")
+```
+
+    ## Loading required package: lattice
+
+    ## Loading required package: ggplot2
+
+``` r
 library ("dplyr")
+```
+
+    ## 
+    ## Attaching package: 'dplyr'
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
+
+``` r
 library(keras)
 library (readr)
 library (tensorflow)
@@ -19,10 +37,9 @@ Train.df <- readRDS("Trian.df_Jul042017.rds")
 
 ### 2) Create Validation Set and Discrete Outcomes
 
-Now that we have read in the data we'll create a validation set so that we can test how our model is performing later. 
-The outcome that we want to predict varies continuously within a range of 4.3 to 8. But, for all practical purposes we don't really want to predict the precise activity as long as we are in the right ball-park. So we are going to make the outcome discrete by binning them into windows. We can choose the bins of any size depending on the desired amount of prediction resolution, and also the amount of information content in the parameters.
+Now that we have read in the data we'll create a validation set so that we can test how our model is performing later. The outcome that we want to predict varies continuously within a range of 4.3 to 8. But, for all practical purposes we don't really want to predict the precise activity as long as we are in the right ball-park. So we are going to make the outcome discrete by binning them into windows. We can choose the bins of any size depending on the desired amount of prediction resolution, and also the amount of information content in the parameters.
 
-```{r}
+``` r
 #### Bin continuous variable into bins to make it discrete ####
 Act_Discrete <- Train.df$Act
 Discrete_Temp <- ceiling (Train.df$Act) - round(Train.df$Act)
@@ -38,51 +55,53 @@ Act_Discrete_Validation <- Act_Discrete[-ValidationSet]
 Act_Discrete <- Act_Discrete[ValidationSet]
 ```
 
-### 3) Visualize the Data ###
+### 3) Visualize the Data
 
 The number of parameters in the data are in the thousands. So we'll use PCA to visualize data and get some sense of what it all means.
 
-```{r}
+``` r
 Fit_PrincComp <- princomp(Train.df[,3:ncol(Train.df)])
 MidAct <- max(Train.df$Act) - min(Train.df$Act)
 ScaledAct <- MidAct - Train.df$Act
 MyData_PrinComp <- data.frame(Fit_PrincComp$scores)
-
 ```
+
 First we'll print a plot of PC1 and PC2.
 
-```{r}
+``` r
 p1 <- ggplot(MyData_PrinComp)
 p1 <- p1 + geom_point(aes(Comp.1,Comp.2, color = ScaledAct), alpha = 1, size = 0.5) 
 p1
-
 ```
+
+![](ActivityPreds_KerasTF_1_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-4-1.png)
 
 We'll also look at how a plot of PC2 and PC3 looks.
 
-```{r}
+``` r
 p1 <- ggplot(MyData_PrinComp)
 p1 <- p1 + geom_point(aes(Comp.2,Comp.3, color = ScaledAct), alpha = 1, size = 0.5) 
 p1
 ```
 
+![](ActivityPreds_KerasTF_1_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-5-1.png)
+
 Principal component plots show that based on the prediction parameters the samples do not fall into tight clusters. If we color them by activity we can observe that PC3 seems to form somewhat of a cluster of highly active molecules. Though the clusters are not exclusive, they do capture some information about the molecule's activity which can be used for prediction.
 
-#### 4) Create TF model using Keras ####
+#### 4) Create TF model using Keras
 
 We are going to use all the features for prediction. Since we know that PC3 also has some predictive value, we'll include PC1 2 and 3
 
-```{r}
+``` r
 PC.Act.df <- t(Fit_PrincComp$loadings[,1:3]) %*% t(as.matrix(Train.df[,3:ncol(Train.df)]))
 PC.Act.df <- t(PC.Act.df)
 ### Add the three informative PCs to the parameter list
 Train.df <- cbind (Train.df, PC.Act.df)
-
 ```
 
 Since there are very few rows with high activity and an overwhelming majority of rows have the lowest levels of activity, we are at a danger of training our model to just predict low activity all the time. This would defeat the purpose of identifying those molecules which might have high molecular activity. To prevent this from happening we'll make several small chunks of the data. Each chunk will have all of the less-frequent, high activity molecules, and a random sample of the highly-frequent low activity molecules. We'll then iteratively train our model with all theses chunks, updating the weights from the previous training chunk as we go along.
 
-```{r}
+``` r
 ######
 Level_Length <- length(levels(factor(Act_Discrete)))
 ActDiscrete_Table <- table(Act_Discrete)
@@ -101,6 +120,30 @@ model_trimmed %>%
   layer_dropout(rate = 0.2) %>%
   layer_dense(units = 9, activation = 'softmax')
 summary (model_trimmed)
+```
+
+    ## Model
+    ## ___________________________________________________________________________
+    ## Layer (type)                     Output Shape                  Param #     
+    ## ===========================================================================
+    ## dense_1 (Dense)                  (None, 1040)                  9874800     
+    ## ___________________________________________________________________________
+    ## dropout_1 (Dropout)              (None, 1040)                  0           
+    ## ___________________________________________________________________________
+    ## dense_2 (Dense)                  (None, 1040)                  1082640     
+    ## ___________________________________________________________________________
+    ## dropout_2 (Dropout)              (None, 1040)                  0           
+    ## ___________________________________________________________________________
+    ## dense_3 (Dense)                  (None, 9)                     9369        
+    ## ===========================================================================
+    ## Total params: 10,966,809
+    ## Trainable params: 10,966,809
+    ## Non-trainable params: 0
+    ## ___________________________________________________________________________
+    ## 
+    ## 
+
+``` r
 model_trimmed %>% compile(
   loss = 'categorical_crossentropy',
   optimizer = optimizer_sgd(lr = 0.0005, decay = 0.0001),
@@ -168,7 +211,7 @@ save_model_hdf5(object=model_trimmed, filepath = paste0("model_trimmed_", format
 
 Now we'll declare a function to calculate R-squared and use to test our prediction on the validation set we created at the beginning.
 
-```{r}
+``` r
 Rsquared <- function(x,y) {
   # Returns R-squared.
   # R2 = \frac{[\sum_i(x_i-\bar x)(y_i-\bar y)]^2}{\sum_i(x_i-\bar x)^2 \sum_j(y_j-\bar y)^2}
@@ -194,6 +237,6 @@ Myclasses <- model_trimmed %>% predict_classes(as.matrix(Train_Validation.df[,3:
 print (paste0("Our final R-Squared Value is: ", Rsquared(x = Train_Validation.df$Act, y = Myclasses)))
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+    ## [1] "Our final R-Squared Value is: 0.494778923184077"
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
